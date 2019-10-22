@@ -23,11 +23,9 @@ sys.path.append(base_path +'model/')
 # sys.path.append(base_path + '/model/')
 # sys.path.append(base_path + '/utility/')
 
-print(sys.path)
 import algo as model
-print(model)
 import utility as utl
-print(utl)
+
 
 #parse argument 
 parser = argparse.ArgumentParser()
