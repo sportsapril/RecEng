@@ -142,7 +142,8 @@ def run_wals(data, dim, reg, unobs, weights=False,
 
   return input_tensor, row_factor, col_factor, model
 
-def train_model(args, tr_sparse, params):
+# def train_model(args, tr_sparse, params):
+def train_model(tr_sparse, params):
   print(params)
   """
 
