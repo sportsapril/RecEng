@@ -25,8 +25,8 @@ def get_rmse(output_row, output_col, actual):
   return rmse
 
 
-def simple_train(model, input_tensor, num_iterations):
-  """Helper function to train model on input for num_iterations.
+def tf_train_wrapper(model, input_tensor, num_iterations):
+  """wrapper function to train model on input for num_iterations.
 
   Inputs:
     model:            WALSModel instance
@@ -89,7 +89,7 @@ def make_wts(data, wt_type, obs_wt, feature_wt_exp, axis):
   return wts
 
 
-def wals_model(data, dim, reg, unobs, weights=False,
+def run_wals(data, dim, reg, unobs, weights=False,
                wt_type=LINEAR_RATINGS, feature_wt_exp=None,
                obs_wt=LINEAR_OBS_W):
   """Create the WALSModel and input, row and col factor tensors.
@@ -142,40 +142,56 @@ def wals_model(data, dim, reg, unobs, weights=False,
 
   return input_tensor, row_factor, col_factor, model
 
-def train_model(args, tr_sparse):
-  """Instantiate WALS model and use "simple_train" to factorize the matrix.
-
-  Args:
-    args: training args containing hyperparams
-    tr_sparse: sparse training matrix
-
-  Returns:
-     the row and column factors in numpy format.
+def train_model(args, tr_sparse, params):
+  print(params)
   """
-  dim = args.latent_factors
-  num_iters = args.num_iters
-  reg = args.regularization
-  unobs = args.unobs_weight
-  wt_type = args.wt_type
-  feature_wt_exp = args.feature_wt_exp
-  obs_wt = args.feature_wt_factor
+
+  Inputs:
+    args: user input
+    tr_sparse: sparse training matrix
+    params: hyper params for the factorization
+
+
+  Ouptut:
+     the row and column factors (np)
+  """
+  # params = {
+  #   'weights': True,
+  #   'latent_factors': 5,
+  #   'num_iters': 20,
+  #   'regularization': 9.997,
+  #   'unobs_weight': 0.001,
+  #   'wt_type': 0,
+  #   'feature_wt_factor': 200,
+  #   'feature_wt_exp': 0.08,
+  #   'delimiter': '\t'
+  #   }
+  # params.update({k: arg for k, arg in arguments.iteritems() if arg is not None})
+  # if args.use_optimized:
+  #   params.update({'latent_factors': 34,
+  #     'regularization': 9.83,
+  #     'unobs_weight': 0.001,
+  #     'feature_wt_factor': 189.8,
+  #     })
+  # params.update(task_data)
+  # params.update({'output_dir': output_dir})
+  # params.update({'job_name': job_name})
+
+  # print(params)
+
+  # dim = args.latent_factors
+  # num_iters = args.num_iters
+  # reg = args.regularization
+  # unobs = args.unobs_weight
+  # wt_type = args.wt_type
+  # feature_wt_exp = args.feature_wt_exp
+  # obs_wt = args.feature_wt_factor
 
   tf.logging.info('Train Start: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
 
   # generate model
-  params = {
-    'weights': True,
-    'latent_factors': 5,
-    'num_iters': 20,
-    'regularization': 9.997,
-    'unobs_weight': 0.001,
-    'wt_type': 0,
-    'feature_wt_factor': 200,
-    'feature_wt_exp': 0.08,
-    'delimiter': '\t'
-    }
-  print(params)
-  input_tensor, row_factor, col_factor, model = wals_model(tr_sparse, params['latent_factors'],
+
+  input_tensor, row_factor, col_factor, model = run_wals(tr_sparse, params['latent_factors'],
                                                                 params['regularization'],
                                                                 params['unobs_weight'],
                                                                 params['weights'],
@@ -184,7 +200,7 @@ def train_model(args, tr_sparse):
                                                                 params['feature_wt_factor'])
 
   # factorize matrix
-  session = simple_train(model, input_tensor, params['num_iters'])
+  session = tf_train_wrapper(model, input_tensor, params['num_iters'])
 
   tf.logging.info('Train Finish: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
 

@@ -7,39 +7,8 @@ import sh
 import tensorflow as tf
 
 
-
-# def create_test_and_train_sets(args, input_file, data_type='ratings'):
-#   """Create test and train sets, for different input data types.
-
-#   Args:
-#     args: input args for job
-#     input_file: path to csv data file
-#     data_type:  'ratings': MovieLens style ratings matrix
-#                 'web_views': Google Analytics time-on-page data
-
-#   Returns:
-#     array of user IDs for each row of the ratings matrix
-#     array of item IDs for each column of the rating matrix
-#     sparse coo_matrix for training
-#     sparse coo_matrix for test
-
-#   Raises:
-#     ValueError: if invalid data_type is supplied
-#   """
-#   if data_type == 'ratings':
-#     return _ratings_train_and_test(args['headers'], args['delimiter'],
-#                                    input_file)
-#   elif data_type == 'web_views':
-#     return _page_views_train_and_test(input_file)
-#   else:
-#     raise ValueError('data_type arg value %s not supported.' % data_type)
-
-# rename _ratings_train_and_test to split_train_and_test
-#def _ratings_train_and_test(hasHeader, delimiter, input_file):
-
 def split_train_and_test(args, input_file):
   headers = ['user_id', 'item_id', 'rating', 'timestamp']
-  # headers = ['user_id', 'item_id', 'rating']
   header_row = 0 if args.headers else None
   print('input file:')
   print(input_file)
@@ -102,10 +71,6 @@ def split_train_and_test(args, input_file):
   item_ID_mapping_dd = item_ID_mapping.drop_duplicates()
   item_ID_mapping_dd = item_ID_mapping_dd.set_index('item_original_ID')
 
-  #item_ID_mapping_dd.to_csv(+'item_ID_mapping_dd.csv')
-
-
-
   tr_sparse, test_sparse = create_train_and_test_sparse(ratings,n_users, n_items)
 
   return ratings[:, 0], ratings[:, 1], tr_sparse, test_sparse, item_ID_mapping_dd
@@ -113,11 +78,11 @@ def split_train_and_test(args, input_file):
 def train_model(args, tr_sparse):
   """Instantiate WALS model and use "simple_train" to factorize the matrix.
 
-  Args:
-    args: training args containing hyperparams
+  Inputs:
+    args: user passed args
     tr_sparse: sparse training matrix
 
-  Returns:
+  Output:
      the row and column factors in numpy format.
   """
   dim = args.latent_factors
@@ -155,11 +120,11 @@ def train_model(args, tr_sparse):
   return output_row, output_col
 
 def save_model(args, user_map, item_map, row_factor, col_factor,item_ID_mapping_dd):
-  """Save the user map, item map, row factor and column factor matrices in numpy format.
+  """
 
   These matrices together constitute the "recommendation model."
 
-  Args:
+  Inputs:
     args:         input args to training job
     user_map:     user map numpy array
     item_map:     item map numpy array
@@ -167,6 +132,7 @@ def save_model(args, user_map, item_map, row_factor, col_factor,item_ID_mapping_
     col_factor:   col_factor numpy array
     item_ID_mapping_dd: original item ID to rebased item ID mapping
   """
+
   model_dir = os.path.join(args.output_dir, 'model')
 
   # if our output directory is a GCS bucket, write model files to /tmp,
@@ -190,7 +156,7 @@ def save_model(args, user_map, item_map, row_factor, col_factor,item_ID_mapping_
 def generate_recommendations(user_idx, user_rated, row_factor, col_factor, k):
   """Generate recommendations for a user.
 
-  Args:
+  Inputs:
     user_idx: the row index of the user in the ratings matrix,
 
     user_rated: the list of item indexes (column indexes in the ratings matrix)
@@ -202,13 +168,13 @@ def generate_recommendations(user_idx, user_rated, row_factor, col_factor, k):
 
     k: number of recommendations requested
 
-  Returns:
+  Output:
     list of k item indexes with the predicted highest rating, excluding
     those that the user has already rated
   """
 
   # bounds checking for args
-  #assert (row_factor.shape[0] - len(user_rated)) >= k AX Commented
+
   assert (col_factor.shape[0] - len(user_rated)) >= k
 
   # retrieve user factor
@@ -246,12 +212,12 @@ def validate_file(input_file):
 def create_train_and_test_sparse(ratings, n_users, n_items):
   """Given ratings, create sparse matrices for train and test sets.
 
-  Args:
+  Inputs:
     ratings:  list of ratings tuples  (u, i, r)
     n_users:  number of users
     n_items:  number of items
 
-  Returns:
+  Output:
      train, test sparse matrices in scipy coo_matrix format.
   """
   # pick a random test set of entries, sorted ascending

@@ -17,12 +17,6 @@ sys.path.append(base_path +'util/')
 sys.path.append(base_path +'model/')
 
 
-# base_path = os.getcwd()
-# os.chdir('..')
-# up_dir = os.path.abspath(os.curdir)
-# sys.path.append(base_path + '/model/')
-# sys.path.append(base_path + '/utility/')
-
 import algo as model
 import utility as utl
 
@@ -154,7 +148,7 @@ if args.verbose_logging:
 env = json.loads(os.environ.get('TF_CONFIG', '{}'))
 task_data = env.get('task') or {'type': 'master', 'index': 0}
 
-# update default params with any args provided to task
+# # update default params with any args provided to task
 params = {
     'weights': True,
     'latent_factors': 5,
@@ -181,20 +175,17 @@ params.update({'job_name': job_name})
 
 def training_main(args):
   # process input file
-  # print(args)
-  # print(utl)
-  print(args.extract_file_name)
-  print(base_path)
+
   print('step 1: validating file name')
   print(args.train_file)
   input_file = utl.validate_file(args.train_file)
-  print(input_file)
+
   print('step 2: splitting training and testing data sets')
   user_map, item_map, tr_sparse, test_sparse, item_ID_mapping_dd = utl.split_train_and_test(args, input_file)
 
   # train model
   print('step 3: training the model')
-  output_row, output_col = model.train_model(args, tr_sparse)
+  output_row, output_col = model.train_model(args, tr_sparse, params)
 
   # save trained model to job directory
   print('step 4: saving the model')
