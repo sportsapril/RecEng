@@ -5,14 +5,26 @@ import sys
 import tensorflow as tf
 
 # custom packages
-base_path = os.getcwd()
-os.chdir('..')
-up_dir = os.path.abspath(os.curdir)
-sys.path.append(base_path + '/model/')
-sys.path.append(base_path + '/utility/')
+pwd1 = '/Users/aprilxu/Documents/GitHub/RecEng'
 
-print(base_path + '/utility/')
-import model
+print('-------------------------')
+print("Path: " + pwd1)
+print('-------------------------')
+
+file_path = pwd1 + '/'
+base_path = pwd1 + '/'
+sys.path.append(base_path +'util/')
+sys.path.append(base_path +'model/')
+
+
+# base_path = os.getcwd()
+# os.chdir('..')
+# up_dir = os.path.abspath(os.curdir)
+# sys.path.append(base_path + '/model/')
+# sys.path.append(base_path + '/utility/')
+
+print(sys.path)
+import algo as model
 print(model)
 import utility as utl
 print(utl)
@@ -94,12 +106,12 @@ parser.add_argument(
 parser.add_argument(
   '--delimiter',
   type=str,
-  default='\t',
+  default=',',
   help='Delimiter for csv data files'
 )
 parser.add_argument(
   '--headers',
-  default=False,
+  default=True,
   action='store_true',
   help='Input file has a header row'
 )
@@ -118,7 +130,7 @@ arguments = args.__dict__
 # 	args.train_file = os.path.join(args.gcs_bucket, args.extract_file_name)
 # else:
 # 	args.train_file = base_path + '/data/Dataset_LatestSmall/' + args.extract_file_name
-args.train_file = base_path[:-1] if base_path.endswith('/') else base_path + '/data/Dataset_LatestSmall/' + args.extract_file_name
+args.train_file = base_path + 'data/Dataset_LatestSmall/' + args.extract_file_name
 
 # set job name as job directory name
 job_dir =  base_path[:-1] if base_path.endswith('/') else base_path + '/jobs/'
@@ -171,9 +183,13 @@ params.update({'job_name': job_name})
 
 def training_main(args):
   # process input file
-  print(args)
+  # print(args)
+  # print(utl)
+  print(args.extract_file_name)
+  print(base_path)
   print('step 1: validating file name')
-  input_file = utl.validate_file(args['train_file'])
+  print(args.train_file)
+  input_file = utl.validate_file(args.train_file)
   print(input_file)
   print('step 2: splitting training and testing data sets')
   user_map, item_map, tr_sparse, test_sparse, item_ID_mapping_dd = utl.split_train_and_test(args, input_file)
@@ -184,14 +200,14 @@ def training_main(args):
 
   # save trained model to job directory
   print('step 4: saving the model')
-  model.save_model(args, user_map, item_map, output_row, output_col,item_ID_mapping_dd)
+  utl.save_model(args, user_map, item_map, output_row, output_col,item_ID_mapping_dd)
 
   # log results
   print('step 5: get results')
   train_rmse = model.get_rmse(output_row, output_col, tr_sparse)
   test_rmse = model.get_rmse(output_row, output_col, test_sparse)
 
-  if args['hypertune']:
+  if args.hyperparam_tune:
     # write test_rmse metric for hyperparam tuning
     util.write_hptuning_metric(args, test_rmse)
 
