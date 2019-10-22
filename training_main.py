@@ -6,12 +6,16 @@ import tensorflow as tf
 
 # custom packages
 base_path = os.getcwd()
+os.chdir('..')
+up_dir = os.path.abspath(os.curdir)
 sys.path.append(base_path + '/model/')
 sys.path.append(base_path + '/utility/')
 
 print(base_path + '/utility/')
 import model
+print(model)
 import utility as utl
+print(utl)
 
 #parse argument 
 parser = argparse.ArgumentParser()
