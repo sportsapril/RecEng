@@ -75,49 +75,6 @@ def split_train_and_test(args, input_file):
 
   return ratings[:, 0], ratings[:, 1], tr_sparse, test_sparse, item_ID_mapping_dd
 
-def train_model(args, tr_sparse):
-  """Instantiate WALS model and use "simple_train" to factorize the matrix.
-
-  Inputs:
-    args: user passed args
-    tr_sparse: sparse training matrix
-
-  Output:
-     the row and column factors in numpy format.
-  """
-  dim = args.latent_factors
-  num_iters = args.num_iters
-  reg = args.regularization
-  unobs = args.unobs_weight
-  wt_type = args.wt_type
-  feature_wt_exp = args.feature_wt_exp
-  obs_wt = args.feature_wt_factor
-
-  tf.logging.info('Train Start: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
-
-  # generate model
-  input_tensor, row_factor, col_factor, model = wals.wals_model(tr_sparse,
-                                                                dim,
-                                                                reg,
-                                                                unobs,
-                                                                args.weights,
-                                                                wt_type,
-                                                                feature_wt_exp,
-                                                                obs_wt)
-
-  # factorize matrix
-  session = wals.simple_train(model, input_tensor, num_iters)
-
-  tf.logging.info('Train Finish: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
-
-  # evaluate output factor matrices
-  output_row = row_factor.eval(session=session)
-  output_col = col_factor.eval(session=session)
-
-  # close the training session now that we've evaluated the output
-  session.close()
-
-  return output_row, output_col
 
 def save_model(args, user_map, item_map, row_factor, col_factor,item_ID_mapping_dd):
   """
