@@ -185,7 +185,7 @@ def training_main(args):
 
   # train model
   print('step 3: training the model')
-  output_row, output_col = model.train_model(args, tr_sparse, params)
+  output_row, output_col = model.train_model(tr_sparse, params)
 
   # save trained model to job directory
   print('step 4: saving the model')
