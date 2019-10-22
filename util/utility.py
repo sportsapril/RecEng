@@ -39,17 +39,26 @@ import tensorflow as tf
 
 def split_train_and_test(args, input_file):
   headers = ['user_id', 'item_id', 'rating', 'timestamp']
-  header_row = 0 if args['headers'] else None
-  ratings_df = pd.read_csv(input_file,
-                         sep=args['delimiter'],
-                         names=headers,
-                         header=header_row,
-                         dtype={
-                             'user_id': np.int32,
-                             'item_id': np.int32,
-                             'rating': np.float32,
-                             'timestamp': np.float32,
-                         })
+  # headers = ['user_id', 'item_id', 'rating']
+  header_row = 0 if args.headers else None
+  print('input file:')
+  print(input_file)
+  print('input delimiter:')
+  print(args.delimiter)
+  print(headers)
+  print(header_row)
+  ratings_df = pd.read_csv(input_file, 
+    sep=args.delimiter,
+    names=headers,
+    header=header_row,
+    dtype = {'user_id': np.int32, 
+    'item_id': np.int32, 
+    'rating': np.float32, 
+    'timestamp':np.float32
+    }
+    )
+
+                         
 
   np_users = ratings_df.user_id.as_matrix()
   np_items = ratings_df.item_id.as_matrix()
@@ -87,18 +96,17 @@ def split_train_and_test(args, input_file):
     ratings[:, 0] -= 1
     ratings[:, 1] -= 1
 
-    item_ID_mapping = pd.concat([pd.DataFrame(np_items),pd.DataFrame(ratings[:,1])],axis=1)
-    item_ID_mapping.columns = ['item_original_ID','item_rebased_ID']
+  item_ID_mapping = pd.concat([pd.DataFrame(np_items),pd.DataFrame(ratings[:,1])],axis=1)
+  item_ID_mapping.columns = ['item_original_ID','item_rebased_ID']
 
-    item_ID_mapping_dd = item_ID_mapping.drop_duplicates()
-    item_ID_mapping_dd = item_ID_mapping_dd.set_index('item_original_ID')
+  item_ID_mapping_dd = item_ID_mapping.drop_duplicates()
+  item_ID_mapping_dd = item_ID_mapping_dd.set_index('item_original_ID')
 
   #item_ID_mapping_dd.to_csv(+'item_ID_mapping_dd.csv')
 
 
 
-  tr_sparse, test_sparse = _create_sparse_train_and_test(ratings,
-                                                       n_users, n_items)
+  tr_sparse, test_sparse = create_train_and_test_sparse(ratings,n_users, n_items)
 
   return ratings[:, 0], ratings[:, 1], tr_sparse, test_sparse, item_ID_mapping_dd
 
@@ -112,13 +120,13 @@ def train_model(args, tr_sparse):
   Returns:
      the row and column factors in numpy format.
   """
-  dim = args['latent_factors']
-  num_iters = args['num_iters']
-  reg = args['regularization']
-  unobs = args['unobs_weight']
-  wt_type = args['wt_type']
-  feature_wt_exp = args['feature_wt_exp']
-  obs_wt = args['feature_wt_factor']
+  dim = args.latent_factors
+  num_iters = args.num_iters
+  reg = args.regularization
+  unobs = args.unobs_weight
+  wt_type = args.wt_type
+  feature_wt_exp = args.feature_wt_exp
+  obs_wt = args.feature_wt_factor
 
   tf.logging.info('Train Start: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
 
@@ -127,7 +135,7 @@ def train_model(args, tr_sparse):
                                                                 dim,
                                                                 reg,
                                                                 unobs,
-                                                                args['weights'],
+                                                                args.weights,
                                                                 wt_type,
                                                                 feature_wt_exp,
                                                                 obs_wt)
@@ -159,14 +167,14 @@ def save_model(args, user_map, item_map, row_factor, col_factor,item_ID_mapping_
     col_factor:   col_factor numpy array
     item_ID_mapping_dd: original item ID to rebased item ID mapping
   """
-  model_dir = os.path.join(args['output_dir'], 'model')
+  model_dir = os.path.join(args.output_dir, 'model')
 
   # if our output directory is a GCS bucket, write model files to /tmp,
   # then copy to GCS
   gs_model_dir = None
   if model_dir.startswith('gs://'):
     gs_model_dir = model_dir
-    model_dir = '/tmp/{0}'.format(args['job_name'])
+    model_dir = '/tmp/{0}'.format(args.job_name)
 
   os.makedirs(model_dir)
   np.save(os.path.join(model_dir, 'user'), user_map)
@@ -222,15 +230,45 @@ def generate_recommendations(user_idx, user_rated, row_factor, col_factor, k):
 
   return recommended_items, pred_ratings[recommended_items]
 
-  def validate_file(input_file):
-    """
-    Ensure the training ratings file is stored locally.
-    """
-    if input_file.startswith('gs:/'):
-      input_path = os.path.join('/tmp/', str(uuid.uuid4()))
-      os.makedirs(input_path)
-      tmp_input_file = os.path.join(input_path, os.path.basename(input_file))
-      sh.gsutil("cp", "-r", input_file, tmp_input_file)
-      return tmp_input_file
-    else:
-      return input_file
+def validate_file(input_file):
+  """
+  Ensure the training ratings file is stored locally.
+  """
+  if input_file.startswith('gs:/'):
+    input_path = os.path.join('/tmp/', str(uuid.uuid4()))
+    os.makedirs(input_path)
+    tmp_input_file = os.path.join(input_path, os.path.basename(input_file))
+    sh.gsutil("cp", "-r", input_file, tmp_input_file)
+    return tmp_input_file
+  else:
+    return input_file
+
+def create_train_and_test_sparse(ratings, n_users, n_items):
+  """Given ratings, create sparse matrices for train and test sets.
+
+  Args:
+    ratings:  list of ratings tuples  (u, i, r)
+    n_users:  number of users
+    n_items:  number of items
+
+  Returns:
+     train, test sparse matrices in scipy coo_matrix format.
+  """
+  # pick a random test set of entries, sorted ascending
+  test_set_size = len(ratings) / 10
+  test_set_idx = np.random.choice(xrange(len(ratings)),
+                                  size=test_set_size, replace=False)
+  test_set_idx = sorted(test_set_idx)
+
+  # sift ratings into train and test sets
+  ts_ratings = ratings[test_set_idx]
+  tr_ratings = np.delete(ratings, test_set_idx, axis=0)
+
+  # create training and test matrices as coo_matrix's
+  u_tr, i_tr, r_tr = zip(*tr_ratings)
+  tr_sparse = coo_matrix((r_tr, (u_tr, i_tr)), shape=(n_users, n_items))
+
+  u_ts, i_ts, r_ts = zip(*ts_ratings)
+  test_sparse = coo_matrix((r_ts, (u_ts, i_ts)), shape=(n_users, n_items))
+
+  return tr_sparse, test_sparse
