@@ -1,8 +1,8 @@
 import math
-
+import datetime
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.factorization import factorization_ops
+from tensorflow.contrib.factorization import WALSModel
 
 def get_rmse(output_row, output_col, actual):
   """Compute rmse between predicted and actual ratings.
@@ -130,7 +130,7 @@ def wals_model(data, dim, reg, unobs, weights=False,
                                    values=(data.data).astype(np.float32),
                                    dense_shape=data.shape)
 
-    model = factorization_ops.WALSModel(num_rows, num_cols, dim,
+    model = WALSModel(num_rows, num_cols, dim,
                                         unobserved_weight=unobs,
                                         regularization=reg,
                                         row_weights=row_wts,
@@ -141,3 +141,58 @@ def wals_model(data, dim, reg, unobs, weights=False,
     col_factor = model.col_factors[0]
 
   return input_tensor, row_factor, col_factor, model
+
+def train_model(args, tr_sparse):
+  """Instantiate WALS model and use "simple_train" to factorize the matrix.
+
+  Args:
+    args: training args containing hyperparams
+    tr_sparse: sparse training matrix
+
+  Returns:
+     the row and column factors in numpy format.
+  """
+  dim = args.latent_factors
+  num_iters = args.num_iters
+  reg = args.regularization
+  unobs = args.unobs_weight
+  wt_type = args.wt_type
+  feature_wt_exp = args.feature_wt_exp
+  obs_wt = args.feature_wt_factor
+
+  tf.logging.info('Train Start: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
+
+  # generate model
+  params = {
+    'weights': True,
+    'latent_factors': 5,
+    'num_iters': 20,
+    'regularization': 9.997,
+    'unobs_weight': 0.001,
+    'wt_type': 0,
+    'feature_wt_factor': 200,
+    'feature_wt_exp': 0.08,
+    'delimiter': '\t'
+    }
+  print(params)
+  input_tensor, row_factor, col_factor, model = wals_model(tr_sparse, params['latent_factors'],
+                                                                params['regularization'],
+                                                                params['unobs_weight'],
+                                                                params['weights'],
+                                                                params['wt_type'],
+                                                                params['feature_wt_exp'],
+                                                                params['feature_wt_factor'])
+
+  # factorize matrix
+  session = simple_train(model, input_tensor, params['num_iters'])
+
+  tf.logging.info('Train Finish: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
+
+  # evaluate output factor matrices
+  output_row = row_factor.eval(session=session)
+  output_col = col_factor.eval(session=session)
+
+  # close the training session now that we've evaluated the output
+  session.close()
+
+  return output_row, output_col
